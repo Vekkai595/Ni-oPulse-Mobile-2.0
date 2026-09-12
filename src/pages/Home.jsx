@@ -43,6 +43,21 @@ function pct(value) {
   return Number.isFinite(value) ? `${value}%` : "—";
 }
 
+/* CORREÇÃO PRINCIPAL:
+   nunca chama .split() em undefined/null.
+*/
+function safeSeasonWindow(season, language) {
+  if (!season) return "—";
+
+  const label = seasonLabel(season, language);
+
+  if (!label || typeof label !== "string") {
+    return "—";
+  }
+
+  return label.split(" · ")[0] || "—";
+}
+
 export default function Home() {
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [riskFilter, setRiskFilter] = useState("all");
@@ -61,8 +76,12 @@ export default function Home() {
     const normalized = query.trim().toLowerCase();
 
     return localizedCountries.filter((country) => {
-      const riskMatch = riskFilter === "all" || country.nivelDeRisco === riskFilter;
-      const threatMatch = !threatFilter || country.ameacas.includes(threatFilter);
+      const riskMatch =
+        riskFilter === "all" || country.nivelDeRisco === riskFilter;
+
+      const threatMatch =
+        !threatFilter || country.ameacas.includes(threatFilter);
+
       const queryMatch =
         !normalized ||
         `${country.nome} ${country.continente} ${country.resumoClimatico}`
@@ -73,10 +92,10 @@ export default function Home() {
     });
   }, [localizedCountries, query, riskFilter, threatFilter]);
 
-  const selectedSeason = data.forecast?.selectedSeason;
-  const regions = data.current?.weeklySst?.regions || {};
+  const selectedSeason = data?.forecast?.selectedSeason;
+  const regions = data?.current?.weeklySst?.regions || {};
   const nino34 = regions.nino34?.anomaly;
-  const seasons = (data.forecast?.seasons || []).slice(0, 5);
+  const seasons = (data?.forecast?.seasons || []).slice(0, 5);
 
   const highRiskCount = localizedCountries.filter((country) =>
     ["alto", "extremo"].includes(country.nivelDeRisco)
@@ -91,7 +110,8 @@ export default function Home() {
           <div className="mx-auto max-w-md rounded-[2rem] border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
-                <Globe2 className="h-3.5 w-3.5" /> ENSO Monitor
+                <Globe2 className="h-3.5 w-3.5" />
+                ENSO Monitor
               </span>
 
               <span
@@ -119,7 +139,7 @@ export default function Home() {
               <MetricCard
                 icon={Activity}
                 label={t("hero.phase")}
-                value={data.current?.phase || "—"}
+                value={data?.current?.phase || "—"}
               />
 
               <MetricCard
@@ -137,26 +157,29 @@ export default function Home() {
               <MetricCard
                 icon={CalendarClock}
                 label={t("hero.next")}
-                value={data.current?.nextUpdateLabel || "—"}
+                value={data?.current?.nextUpdateLabel || "—"}
               />
             </div>
 
             <div className="mt-5 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
               <a href="#mapa" className="mobile-pill-primary">
-                <MapPin className="h-4 w-4" /> {t("nav.map")}
+                <MapPin className="h-4 w-4" />
+                {t("nav.map")}
               </a>
 
               <a href="#paises" className="mobile-pill">
-                <Globe2 className="h-4 w-4" />{" "}
+                <Globe2 className="h-4 w-4" />
                 {language === "pt" ? "Países" : "Countries"}
               </a>
 
               <a href="#previsao" className="mobile-pill">
-                <BarChart3 className="h-4 w-4" /> ENSO
+                <BarChart3 className="h-4 w-4" />
+                ENSO
               </a>
 
               <Link to="/research" className="mobile-pill">
-                <Database className="h-4 w-4" /> {t("nav.research")}
+                <Database className="h-4 w-4" />
+                {t("nav.research")}
               </Link>
             </div>
           </div>
@@ -177,14 +200,18 @@ export default function Home() {
               label={language === "pt" ? "alto risco" : "high risk"}
             />
 
+            {/* AQUI ESTÁ A CORREÇÃO DO CRASH */}
             <MiniStat
-              value={seasonLabel(selectedSeason?.season, language).split(" · ")[0] || "—"}
+              value={safeSeasonWindow(selectedSeason?.season, language)}
               label={language === "pt" ? "janela" : "season"}
             />
           </div>
         </section>
 
-        <section className="mobile-section px-3 pt-6 sm:px-4" id="mapa">
+        <section
+          className="mobile-section px-3 pt-6 sm:px-4"
+          id="mapa"
+        >
           <div className="mx-auto max-w-md">
             <div className="mb-3 flex items-end justify-between gap-3">
               <div>
@@ -211,7 +238,11 @@ export default function Home() {
                 fallback={
                   <SectionLoader
                     minHeight={430}
-                    label={language === "pt" ? "Carregando mapa…" : "Loading map…"}
+                    label={
+                      language === "pt"
+                        ? "Carregando mapa…"
+                        : "Loading map…"
+                    }
                   />
                 }
               >
@@ -231,14 +262,19 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mobile-section px-3 pt-7 sm:px-4" id="previsao">
+        <section
+          className="mobile-section px-3 pt-7 sm:px-4"
+          id="previsao"
+        >
           <div className="mx-auto max-w-md rounded-[1.75rem] border border-border bg-card p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="section-kicker mb-1">NOAA/CPC</p>
+
                 <h2 className="font-display text-2xl font-black tracking-tight">
                   {t("forecast.title")}
                 </h2>
+
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
                   {t("forecast.explanation")}
                 </p>
@@ -250,7 +286,11 @@ export default function Home() {
                 className="control-button h-11 w-11 shrink-0 px-0"
                 aria-label={t("common.refresh")}
               >
-                <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    isFetching ? "animate-spin" : ""
+                  }`}
+                />
               </button>
             </div>
 
@@ -271,12 +311,21 @@ export default function Home() {
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
-                    <Probability label="La Niña" value={item.probability.laNina} />
+                    <Probability
+                      label="La Niña"
+                      value={item.probability.laNina}
+                    />
+
                     <Probability
                       label={t("forecast.neutral")}
                       value={item.probability.neutral}
                     />
-                    <Probability label="El Niño" value={item.probability.elNino} primary />
+
+                    <Probability
+                      label="El Niño"
+                      value={item.probability.elNino}
+                      primary
+                    />
                   </div>
                 </div>
               ))}
@@ -284,11 +333,17 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mobile-section px-3 pt-7 sm:px-4" id="paises">
+        <section
+          className="mobile-section px-3 pt-7 sm:px-4"
+          id="paises"
+        >
           <div className="mx-auto max-w-md">
             <div className="mb-3 flex items-end justify-between gap-3">
               <div>
-                <p className="section-kicker mb-1">{t("countries.kicker")}</p>
+                <p className="section-kicker mb-1">
+                  {t("countries.kicker")}
+                </p>
+
                 <h2 className="font-display text-2xl font-black tracking-tight">
                   {t("countries.title")}
                 </h2>
@@ -320,7 +375,10 @@ export default function Home() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-base font-black">{country.nome}</p>
+                      <p className="truncate text-base font-black">
+                        {country.nome}
+                      </p>
+
                       <p className="mt-1 text-xs font-semibold text-muted-foreground">
                         {country.continente}
                       </p>
@@ -375,15 +433,22 @@ export default function Home() {
 
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {language === "pt"
-                    ? `Última atualização: ${formatDateTime(data.generatedAt, language)}. O painel prioriza dados oficiais, leitura rápida, navegação por toque e visualização interativa do risco climático.`
-                    : `Last update: ${formatDateTime(data.generatedAt, language)}. The dashboard prioritizes official data, quick reading, touch navigation and interactive climate-risk visualization.`}
+                    ? `Última atualização: ${formatDateTime(
+                        data?.generatedAt,
+                        language
+                      )}. O painel prioriza dados oficiais, leitura rápida, navegação por toque e visualização interativa do risco climático.`
+                    : `Last update: ${formatDateTime(
+                        data?.generatedAt,
+                        language
+                      )}. The dashboard prioritizes official data, quick reading, touch navigation and interactive climate-risk visualization.`}
                 </p>
 
                 <Link
                   to="/about"
                   className="mt-4 inline-flex items-center gap-1.5 text-sm font-black text-primary"
                 >
-                  {t("nav.about")} <ArrowUpRight className="h-4 w-4" />
+                  {t("nav.about")}
+                  <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>
@@ -407,9 +472,11 @@ function MetricCard({ icon: Icon, label, value }) {
   return (
     <div className="rounded-2xl border border-border bg-background/70 p-3">
       <Icon className="h-4 w-4 text-primary" />
+
       <p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
         {label}
       </p>
+
       <p className="mt-1 break-words font-display text-lg font-black leading-tight">
         {value}
       </p>
@@ -421,6 +488,7 @@ function MiniStat({ value, label }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-3 text-center shadow-sm">
       <p className="font-display text-lg font-black">{value}</p>
+
       <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
         {label}
       </p>
@@ -432,7 +500,9 @@ function Probability({ label, value, primary = false }) {
   return (
     <div
       className={`rounded-xl p-2 ${
-        primary ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"
+        primary
+          ? "bg-primary/10 text-primary"
+          : "bg-secondary text-muted-foreground"
       }`}
     >
       <p>{label}</p>
